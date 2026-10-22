@@ -27,7 +27,7 @@ class SignMode {
   );
 
   static const SignMode v2Only = SignMode(
-    'V2 Only',
+    '仅 V2',
     '仅 APK Signature Scheme v2，要求 APK 的 minSdk ≥ 24',
     v1: false,
     v2: true,
