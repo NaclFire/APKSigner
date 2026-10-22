@@ -1,0 +1,30 @@
+# Generated Flutter/Dart and IDE files
+**/.dart_tool/
+**/.flutter-plugins
+**/.flutter-plugins-dependencies
+**/.idea/
+**/*.iml
+**/build/
+**/coverage/
+**/ephemeral/
+**/Pods/
+
+# Local machine configuration and credentials
+**/local.properties
+**/key.properties
+**/*.keystore
+**/*.jks
+**/*.p12
+
+# Generated Windows installers and staging payloads
+**/dist/
+**/*-staging/
+**/*.exe
+**/*.msi
+**/*.apk
+
+# Logs and temporary files
+*.log
+*.tmp
+*.swp
+.DS_Store

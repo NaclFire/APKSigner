@@ -1,0 +1,2 @@
+JAVA_VERSION="17.0.20.1"
+MODULES="java.base java.logging java.security.sasl java.naming java.security.jgss java.smartcardio java.xml jdk.security.auth jdk.unsupported"
