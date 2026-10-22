@@ -64,6 +64,13 @@ class MainActivity : FlutterActivity() {
                         )
                     )
 
+                    // 「所有文件访问权限」状态 / 跳转设置
+                    "hasAllFilesAccess" -> result.success(bridge.hasAllFilesAccess())
+                    "openAllFilesAccessSettings" -> {
+                        bridge.openAllFilesAccessSettings()
+                        result.success(true)
+                    }
+
                     else -> result.notImplemented()
                 }
             } catch (e: Exception) {

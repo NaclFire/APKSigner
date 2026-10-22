@@ -122,9 +122,9 @@ class AndroidSigner implements Signer {
     }
   }
 
-  /// 把签名产物保存到源 APK 所在目录（Android 走 MediaStore），返回最终路径。
+  /// 把签名产物保存到源 APK 所在目录（Android 走 MediaStore / 直接写入），返回结果。
   @override
-  Future<String> publishSignedApk({
+  Future<PublishResult> publishSignedApk({
     required String signedApk,
     String? sourceUri,
     required String fileName,
@@ -138,9 +138,34 @@ class AndroidSigner implements Signer {
           'fileName': fileName,
         },
       );
-      return r?['path'] as String? ?? signedApk;
+      final path = r?['path'] as String? ?? signedApk;
+      final location = r?['location'] as String? ?? 'source-dir';
+      final reason = r?['reason'] as String? ?? '';
+      return PublishResult(
+        path,
+        inSourceDir: location == 'source-dir',
+        reason: reason,
+      );
     } on PlatformException catch (e) {
       throw SignerException(e.message ?? 'publish failed');
+    }
+  }
+
+  @override
+  Future<bool> hasAllFilesAccess() async {
+    try {
+      return await _channel.invokeMethod<bool>('hasAllFilesAccess') ?? false;
+    } on PlatformException {
+      return false;
+    }
+  }
+
+  @override
+  Future<void> openAllFilesAccessSettings() async {
+    try {
+      await _channel.invokeMethod<bool>('openAllFilesAccessSettings');
+    } on PlatformException {
+      // 跳转失败时静默忽略，让用户手动去系统设置
     }
   }
 

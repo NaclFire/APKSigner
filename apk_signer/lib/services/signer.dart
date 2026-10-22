@@ -14,6 +14,24 @@ class SignResult {
   const SignResult(this.success, this.message);
 }
 
+/// 签名产物的保存结果。
+class PublishResult {
+  /// 最终保存路径（可直接展示）。
+  final String path;
+
+  /// 是否保存在源 APK 所在目录；false 表示退回了应用目录。
+  final bool inSourceDir;
+
+  /// 退回应用目录时的原因（inSourceDir 为 true 时为空）。
+  final String reason;
+
+  const PublishResult(
+    this.path, {
+    this.inSourceDir = true,
+    this.reason = '',
+  });
+}
+
 /// verify 的结果：各签名方案是否通过 + 证书信息。
 class VerifyResult {
   final bool ok;
@@ -73,13 +91,19 @@ abstract class Signer {
   /// 桌面端原样返回。
   Future<String> prepareInputPath(String pathOrUri);
 
-  /// 把签名产物保存到「源 APK 所在目录」，返回最终保存路径。
+  /// 把签名产物保存到「源 APK 所在目录」。
   /// 桌面端签名时已经写到同目录，默认原样返回。
-  Future<String> publishSignedApk({
+  Future<PublishResult> publishSignedApk({
     required String signedApk,
     String? sourceUri,
     required String fileName,
-  }) async => signedApk;
+  }) async => PublishResult(signedApk);
+
+  /// 是否已获得「所有文件访问权限」（仅 Android 11+ 有意义）。
+  Future<bool> hasAllFilesAccess() async => false;
+
+  /// 跳转「所有文件访问权限」设置页（仅 Android 有意义）。
+  Future<void> openAllFilesAccessSettings() async {}
 
   /// 工厂：异步创建。桌面端会先解析打包资源目录。
   static Future<Signer> create() async {

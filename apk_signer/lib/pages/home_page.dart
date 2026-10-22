@@ -21,7 +21,7 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
+class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   final KeystoreStore _store = KeystoreStore();
   late final Future<Signer> _signerFuture;
 
@@ -46,17 +46,34 @@ class _HomePageState extends State<HomePage> {
   final List<String> _log = [];
   final ScrollController _logScroll = ScrollController();
 
+  /// 等待「所有文件访问权限」授权后重试保存的待办
+  _PendingPublish? _pendingPublish;
+
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _signerFuture = Signer.create();
     _init();
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _logScroll.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // 从「所有文件访问权限」设置页返回后，自动重试保存
+    if (state == AppLifecycleState.resumed) {
+      final pending = _pendingPublish;
+      if (pending != null) {
+        _pendingPublish = null;
+        _retryPublish(pending);
+      }
+    }
   }
 
   void _appendLog(String line) {
@@ -85,6 +102,9 @@ class _HomePageState extends State<HomePage> {
     final res = await FilePicker.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['apk', 'aab'],
+      // 必须显式传 Android 选项：否则插件不会回传 safHandle，
+      // 也就拿不到原始 content:// URI（签名结果要写回源 APK 目录）。
+      androidOptions: const FilePickerAndroidOptions(),
     );
     if (res.isEmpty) return;
     final path = res.single.path;
@@ -196,18 +216,12 @@ class _HomePageState extends State<HomePage> {
       _appendLog('');
       final verify = await signer.verify(realOutput, onLog: _appendLog);
       if (!mounted) return;
+
       var finalPath = realOutput;
+      PublishResult? published;
       if (Platform.isAndroid) {
-        try {
-          finalPath = await signer.publishSignedApk(
-            signedApk: realOutput,
-            sourceUri: _apkUri,
-            fileName: outputName,
-          );
-          _appendLog('已保存到：$finalPath');
-        } catch (e) {
-          _appendLog('保存到原目录失败，已保留应用内副本：$e');
-        }
+        published = await _publish(signer, realOutput, outputName);
+        finalPath = published.path;
       }
       if (!mounted) return;
       setState(() {
@@ -217,12 +231,99 @@ class _HomePageState extends State<HomePage> {
         _verifyResult = verify;
       });
       _toast('签名完成：$finalPath');
+      if (published != null && !published.inSourceDir) {
+        await _offerAllFilesAccess(
+          signer,
+          published.reason,
+          realOutput,
+          outputName,
+        );
+      }
     } else {
       setState(() {
         _busy = false;
         _lastError = res.message;
       });
       _toast('签名失败');
+    }
+  }
+
+  /// 把签名产物保存到源 APK 所在目录（失败时保留应用内副本）。
+  Future<PublishResult> _publish(
+    Signer signer,
+    String tempPath,
+    String fileName,
+  ) async {
+    try {
+      final r = await signer.publishSignedApk(
+        signedApk: tempPath,
+        sourceUri: _apkUri,
+        fileName: fileName,
+      );
+      if (r.inSourceDir) {
+        _appendLog('已保存到：${r.path}');
+      } else {
+        _appendLog('未能保存到原 APK 目录：${r.reason}');
+        _appendLog('已保存到应用目录：${r.path}');
+      }
+      return r;
+    } catch (e) {
+      _appendLog('保存到原目录失败，已保留应用内副本：$e');
+      return PublishResult(tempPath, inSourceDir: false, reason: '$e');
+    }
+  }
+
+  /// 保存失败时引导开启「所有文件访问权限」（Android 11+）。
+  Future<void> _offerAllFilesAccess(
+    Signer signer,
+    String reason,
+    String tempPath,
+    String fileName,
+  ) async {
+    if (!Platform.isAndroid) return;
+    // 连目录都定位不到，是选择器/provider 的问题，给权限也没用
+    if (reason.startsWith('无法定位')) return;
+    // 老系统没有「所有文件访问权限」这项能力
+    if (reason.contains('系统版本不支持')) return;
+    // 已经有权限还失败，说明是别的原因，别再弹授权引导
+    if (await signer.hasAllFilesAccess()) return;
+    if (!mounted) return;
+    final go = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('没能保存到原 APK 目录'),
+        content: Text(
+          '${reason.isEmpty ? '系统拒绝写入该目录' : reason}\n\n'
+          '签名结果已保存在应用目录。可去系统设置为本应用开启'
+          '「所有文件访问权限」，返回后会自动重试保存到原 APK 所在文件夹。',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('暂不'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('去设置'),
+          ),
+        ],
+      ),
+    );
+    if (go != true) return;
+    _pendingPublish = _PendingPublish(tempPath, fileName);
+    await signer.openAllFilesAccessSettings();
+  }
+
+  /// 授权返回后重试保存。
+  Future<void> _retryPublish(_PendingPublish pending) async {
+    final signer = await _signerFuture;
+    final r = await _publish(signer, pending.tempPath, pending.fileName);
+    if (!mounted) return;
+    if (r.inSourceDir) {
+      setState(() => _outputPath = r.path);
+      _toast('已保存到：${r.path}');
+    } else {
+      _toast('仍未能写入原目录，签名文件在：${r.path}');
     }
   }
 
@@ -679,4 +780,11 @@ class _HomePageState extends State<HomePage> {
       ),
     );
   }
+}
+
+/// 待重试的保存任务（授权「所有文件访问权限」返回后执行）。
+class _PendingPublish {
+  final String tempPath;
+  final String fileName;
+  const _PendingPublish(this.tempPath, this.fileName);
 }

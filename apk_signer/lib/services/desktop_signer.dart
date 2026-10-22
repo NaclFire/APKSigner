@@ -352,12 +352,18 @@ class DesktopSigner implements Signer {
 
   /// 桌面端签名结果已经写在源 APK 同目录，无需再发布。
   @override
-  Future<String> publishSignedApk({
+  Future<PublishResult> publishSignedApk({
     required String signedApk,
     String? sourceUri,
     required String fileName,
   }) async =>
-      signedApk;
+      PublishResult(signedApk);
+
+  @override
+  Future<bool> hasAllFilesAccess() async => false;
+
+  @override
+  Future<void> openAllFilesAccessSettings() async {}
 
   /// 自检：检查内置 JRE / apksigner / keytool 是否可用，返回诊断报告。
   Future<String> doctor() async {
