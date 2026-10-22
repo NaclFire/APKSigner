@@ -73,6 +73,14 @@ abstract class Signer {
   /// 桌面端原样返回。
   Future<String> prepareInputPath(String pathOrUri);
 
+  /// 把签名产物保存到「源 APK 所在目录」，返回最终保存路径。
+  /// 桌面端签名时已经写到同目录，默认原样返回。
+  Future<String> publishSignedApk({
+    required String signedApk,
+    String? sourceUri,
+    required String fileName,
+  }) async => signedApk;
+
   /// 工厂：异步创建。桌面端会先解析打包资源目录。
   static Future<Signer> create() async {
     if (kIsWeb) {

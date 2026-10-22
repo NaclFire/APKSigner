@@ -42,7 +42,7 @@ class AndroidSigner implements Signer {
         r?['ok'] as bool? ?? false,
         r?['message'] as String? ?? '',
       );
-      log(res.success ? '签名完成，输出：$outputApk' : '签名失败：${res.message}');
+      log(res.success ? '签名完成' : '签名失败：${res.message}');
       return res;
     } on PlatformException catch (e) {
       log('签名异常：${e.message ?? 'sign failed'}');
@@ -119,6 +119,28 @@ class AndroidSigner implements Signer {
       );
     } on PlatformException catch (e) {
       throw SignerException(e.message ?? 'createKeystore failed');
+    }
+  }
+
+  /// 把签名产物保存到源 APK 所在目录（Android 走 MediaStore），返回最终路径。
+  @override
+  Future<String> publishSignedApk({
+    required String signedApk,
+    String? sourceUri,
+    required String fileName,
+  }) async {
+    try {
+      final r = await _channel.invokeMapMethod<String, Object>(
+        'publishSignedApk',
+        {
+          'signed': signedApk,
+          'sourceUri': sourceUri ?? '',
+          'fileName': fileName,
+        },
+      );
+      return r?['path'] as String? ?? signedApk;
+    } on PlatformException catch (e) {
+      throw SignerException(e.message ?? 'publish failed');
     }
   }
 

@@ -1,7 +1,12 @@
 package fire.apk_signer
 
+import android.content.ContentValues
 import android.content.Context
 import android.net.Uri
+import android.os.Build
+import android.os.Environment
+import android.provider.DocumentsContract
+import android.provider.MediaStore
 import com.android.apksig.ApkSigner
 import com.android.apksig.ApkVerifier
 import org.bouncycastle.asn1.x500.X500Name
@@ -513,6 +518,154 @@ class SignerBridge(private val context: Context) {
         }
     } catch (_: Exception) {
         null
+    }
+
+    // ---------- publish：把签名产物放回源 APK 所在目录 ----------
+
+    /**
+     * 把签名后的 APK 保存到**源 APK 所在目录**。
+     *
+     * 应用只能通过 MediaStore 往共享目录写文件（分区存储），所以：
+     *  1. 从源 content:// URI 反推源文件所在目录（仅支持 Download 及其子目录）；
+     *  2. 用 MediaStore.Downloads 在该目录下建一个同名文件并写入；
+     *  3. 任何一步失败都退回应用外部目录（老行为），保证签名结果不会丢。
+     *
+     * @return path（可直接展示的绝对路径）、uri（MediaStore content://，可能为 null）、
+     *         location（source-dir / app-dir）
+     */
+    fun publishSignedApk(signedPath: String, sourceUri: String?, fileName: String): Map<String, Any?> {
+        val src = File(signedPath)
+        if (!src.isFile) throw SecurityException("签名产物不存在：$signedPath")
+
+        val relativeDir = resolveSourceRelativeDir(sourceUri)
+        if (relativeDir != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            try {
+                val (path, uri) = publishToDownloads(src, relativeDir, fileName)
+                return mapOf("path" to path, "uri" to uri, "location" to "source-dir")
+            } catch (_: Exception) {
+                // 落到下面的应用目录，避免因为个别机型/目录限制导致签名白做
+            }
+        }
+
+        val dir = context.getExternalFilesDir(null) ?: context.filesDir
+        dir.mkdirs()
+        val out = File(dir, fileName)
+        src.copyTo(out, overwrite = true)
+        return mapOf("path" to out.absolutePath, "uri" to "", "location" to "app-dir")
+    }
+
+    /**
+     * 从选择器返回的 content:// URI 反推源文件所在目录（相对外部存储根，如 "Download/WeiXin"）。
+     * 只处理 DocumentsUI 常见的几个 provider；无法确定时返回 null（调用方回退）。
+     */
+    private fun resolveSourceRelativeDir(sourceUri: String?): String? {
+        if (sourceUri.isNullOrBlank()) return null
+        val uri = runCatching { Uri.parse(sourceUri) }.getOrNull() ?: return null
+        val docId = runCatching { DocumentsContract.getDocumentId(uri) }.getOrNull()
+
+        return when (uri.authority) {
+            // 本地存储：docId 形如 "primary:Download/WeiXin/xxx.apk"
+            "com.android.externalstorage.documents" -> {
+                val dumped = docId ?: return null
+                // MediaStore.Downloads 只能写内置存储的 Download/，别的卷（SD 卡）直接放弃
+                if (!dumped.substringBefore(':').equals("primary", ignoreCase = true)) {
+                    return null
+                }
+                val parent = dumped.substringAfter(':', "").substringBeforeLast('/', "")
+                if (parent.isEmpty()) null else parent
+            }
+
+            // 系统下载管理器：docId 形如 "msf:1234"，用 MediaStore 反查真实路径
+            "com.android.providers.downloads.documents" -> {
+                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return null
+                val id = docId?.substringAfterLast(':') ?: return null
+                relativize(mediaDataPath(MediaStore.Downloads.EXTERNAL_CONTENT_URI, id))
+            }
+
+            // 媒体库（部分文件管理器会走这里）
+            "com.android.providers.media.documents" -> {
+                val id = docId?.substringAfterLast(':') ?: return null
+                relativize(mediaDataPath(MediaStore.Files.getContentUri("external"), id))
+            }
+
+            else -> null
+        }
+    }
+
+    private fun mediaDataPath(collection: Uri, id: String): String? = runCatching {
+        context.contentResolver.query(
+            collection,
+            arrayOf(MediaStore.MediaColumns.DATA),
+            "${MediaStore.MediaColumns._ID} = ?",
+            arrayOf(id),
+            null
+        )?.use { c -> if (c.moveToFirst()) c.getString(0) else null }
+    }.getOrNull()
+
+    private fun relativize(fullPath: String?): String? {
+        if (fullPath.isNullOrBlank()) return null
+        val root = Environment.getExternalStorageDirectory().absolutePath
+        if (!fullPath.startsWith("$root/")) return null
+        return fullPath.removePrefix("$root/").substringBeforeLast('/', "")
+    }
+
+    /**
+     * 通过 MediaStore 在 Download/<relativeDir> 下创建文件并写入内容。
+     * 同名文件已存在时系统会自动改名，这里返回最终落盘的真实路径。
+     */
+    private fun publishToDownloads(
+        src: File,
+        relativeDir: String,
+        fileName: String
+    ): Pair<String, String> {
+        // 只允许写到 Download 及其子目录（MediaStore.Downloads 的约束）
+        if (relativeDir != "Download" && !relativeDir.startsWith("Download/")) {
+            throw SecurityException("不在 Download 目录下：$relativeDir")
+        }
+        val relPath = if (relativeDir == "Download") "Download/" else "$relativeDir/"
+        val resolver = context.contentResolver
+        val values = ContentValues().apply {
+            put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
+            put(MediaStore.MediaColumns.MIME_TYPE, "application/vnd.android.package-archive")
+            put(MediaStore.MediaColumns.RELATIVE_PATH, relPath)
+            put(MediaStore.MediaColumns.IS_PENDING, 1)
+        }
+        val collection = MediaStore.Downloads.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+        val uri = resolver.insert(collection, values)
+            ?: throw SecurityException("系统拒绝在 $relPath 创建文件")
+
+        try {
+            resolver.openOutputStream(uri)?.use { out ->
+                src.inputStream().use { it.copyTo(out) }
+            } ?: throw SecurityException("无法写入 $uri")
+            resolver.update(
+                uri,
+                ContentValues().apply { put(MediaStore.MediaColumns.IS_PENDING, 0) },
+                null,
+                null
+            )
+        } catch (e: Exception) {
+            runCatching { resolver.delete(uri, null, null) }
+            throw e
+        }
+
+        // 查询最终文件名（重名时系统会改成 "xxx (1).apk"）
+        var name = fileName
+        var dir = relPath
+        runCatching {
+            resolver.query(
+                uri,
+                arrayOf(MediaStore.MediaColumns.DISPLAY_NAME, MediaStore.MediaColumns.RELATIVE_PATH),
+                null, null, null
+            )?.use { c ->
+                if (c.moveToFirst()) {
+                    c.getString(0)?.let { name = it }
+                    c.getString(1)?.let { dir = it }
+                }
+            }
+        }
+        val path = File(Environment.getExternalStorageDirectory(), "$dir$name").absolutePath
+        return path to uri.toString()
     }
 
     // ---------- 签名 ----------

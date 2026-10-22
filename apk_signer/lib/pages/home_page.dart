@@ -6,6 +6,7 @@ import 'package:apk_signer/pages/create_keystore_dialog.dart';
 import 'package:apk_signer/pages/import_keystore_dialog.dart';
 import 'package:apk_signer/services/keystore_store.dart';
 import 'package:apk_signer/services/signer.dart';
+import 'package:android_file_picker/android_file_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
@@ -25,6 +26,9 @@ class _HomePageState extends State<HomePage> {
   late final Future<Signer> _signerFuture;
 
   String? _apkPath;
+  /// 文件选择器返回的原始 content:// URI（Android），用来定位「源 APK 所在目录」。
+  String? _apkUri;
+  String? _apkName;
   KeystoreProfile? _profile;
   SignMode _mode = SignMode.v1V2V3;
 
@@ -33,6 +37,8 @@ class _HomePageState extends State<HomePage> {
   String? _loadError;
 
   String? _outputPath;
+  /// 分享用的本地路径（Android 上输出文件在共享目录，分享前先留一份应用内副本）
+  String? _sharePath;
   VerifyResult? _verifyResult;
   String? _lastError;
 
@@ -93,10 +99,24 @@ class _HomePageState extends State<HomePage> {
     }
     setState(() {
       _apkPath = path;
+      _apkUri = _sourceUriOf(res.single);
+      _apkName = res.single.name;
       _outputPath = null;
+      _sharePath = null;
       _verifyResult = null;
       _lastError = null;
     });
+  }
+
+  /// 取文件选择器返回的原始存储 URI（Android 上用来反推源文件所在目录）。
+  String? _sourceUriOf(PlatformFile file) {
+    if (!Platform.isAndroid) return null;
+    try {
+      if (file is AndroidPlatformFile) return file.safHandle?.uri.toString();
+    } catch (_) {
+      // 插件内部结构变化时静默降级为「应用目录」
+    }
+    return null;
   }
 
   Future<void> _createProfile() async {
@@ -144,13 +164,19 @@ class _HomePageState extends State<HomePage> {
     final signer = await _signerFuture;
     // Android 上 content URI 先落盘
     final realInput = await signer.prepareInputPath(apk);
+    final baseName =
+        p.basenameWithoutExtension(_apkName ?? p.basename(realInput));
+    final outputName = '${baseName}_sign.apk';
+    // Android：先签到应用私有缓存，签名成功后再发布到源 APK 所在目录
+    // （应用无法直接往共享目录写文件，必须经 MediaStore）。
     final realOutput = Platform.isAndroid
-        ? await _androidOutputPath(p.basename(apk))
+        ? p.join((await getTemporaryDirectory()).path, outputName)
         : _outputNameFor(realInput);
 
     setState(() {
       _busy = true;
       _outputPath = null;
+      _sharePath = null;
       _verifyResult = null;
       _lastError = null;
       _log.clear();
@@ -170,12 +196,27 @@ class _HomePageState extends State<HomePage> {
       _appendLog('');
       final verify = await signer.verify(realOutput, onLog: _appendLog);
       if (!mounted) return;
+      var finalPath = realOutput;
+      if (Platform.isAndroid) {
+        try {
+          finalPath = await signer.publishSignedApk(
+            signedApk: realOutput,
+            sourceUri: _apkUri,
+            fileName: outputName,
+          );
+          _appendLog('已保存到：$finalPath');
+        } catch (e) {
+          _appendLog('保存到原目录失败，已保留应用内副本：$e');
+        }
+      }
+      if (!mounted) return;
       setState(() {
         _busy = false;
-        _outputPath = realOutput;
+        _outputPath = finalPath;
+        _sharePath = realOutput;
         _verifyResult = verify;
       });
-      _toast('签名完成：$realOutput');
+      _toast('签名完成：$finalPath');
     } else {
       setState(() {
         _busy = false;
@@ -185,14 +226,8 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  /// Android 输出到应用外部存储（免权限），并返回完整路径。
-  Future<String> _androidOutputPath(String apkName) async {
-    final dir = await getExternalStorageDirectory() ??
-        await getApplicationDocumentsDirectory();
-    final base = p.basenameWithoutExtension(apkName);
-    return p.join(dir.path, '${base}_sign.apk');
-  }
-
+  /// Android：分享签名产物。共享目录里的文件不一定能直接读，
+  /// 因此优先分享应用内的同一份副本（内容完全相同）。
   Future<void> _openOutputFolder() async {
     final out = _outputPath;
     if (out == null) return;
@@ -201,8 +236,9 @@ class _HomePageState extends State<HomePage> {
     } else if (Platform.isMacOS) {
       Process.start('open', ['-R', out]);
     } else {
-      // Android：分享该文件
-      await SharePlus.instance.share(ShareParams(files: [XFile(out)]));
+      await SharePlus.instance.share(
+        ShareParams(files: [XFile(_sharePath ?? out)]),
+      );
     }
   }
 

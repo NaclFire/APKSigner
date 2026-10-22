@@ -55,6 +55,15 @@ class MainActivity : FlutterActivity() {
                         )
                     )
 
+                    // 把签名产物保存到源 APK 所在目录
+                    "publishSignedApk" -> result.success(
+                        bridge.publishSignedApk(
+                            signedPath = call.argument<String>("signed") ?: "",
+                            sourceUri = call.argument<String>("sourceUri"),
+                            fileName = call.argument<String>("fileName") ?: "signed.apk"
+                        )
+                    )
+
                     else -> result.notImplemented()
                 }
             } catch (e: Exception) {
