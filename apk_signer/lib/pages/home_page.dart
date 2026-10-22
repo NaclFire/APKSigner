@@ -427,8 +427,8 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
             ]),
             const SizedBox(height: 8),
             if (apk == null)
-              const Text('尚未选择 APK 文件',
-                  style: TextStyle(color: Colors.grey))
+              Text('尚未选择 APK 文件',
+                  style: TextStyle(color: theme.colorScheme.onSurfaceVariant))
             else
               SelectableText(
                 p.basename(apk),
@@ -439,7 +439,8 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                 padding: const EdgeInsets.only(top: 2),
                 child: SelectableText(
                   apk,
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                  style: TextStyle(
+                      fontSize: 12, color: theme.colorScheme.onSurfaceVariant),
                 ),
               ),
           ],
@@ -475,10 +476,10 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
             ]),
             const SizedBox(height: 8),
             if (profiles.isEmpty)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 8),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
                 child: Text('暂无签名文件，点「新建」或「导入」添加',
-                    style: TextStyle(color: Colors.grey)),
+                    style: TextStyle(color: theme.colorScheme.onSurfaceVariant)),
               )
             else
               DropdownButtonFormField<KeystoreProfile>(
@@ -516,10 +517,11 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   }
 
   Widget _profileMeta(KeystoreProfile pr) {
+    final scheme = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: Colors.grey.shade100,
+        color: scheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(8),
       ),
       child: Column(
@@ -535,6 +537,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   }
 
   Widget _metaRow(String label, String value) {
+    final scheme = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.only(bottom: 2),
       child: Row(
@@ -542,11 +545,11 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
         children: [
           SizedBox(
             width: 40,
-            child: Text(label, style: TextStyle(color: Colors.grey.shade700)),
+            child: Text(label, style: TextStyle(color: scheme.onSurfaceVariant)),
           ),
           Expanded(
             child: SelectableText(value,
-                style: const TextStyle(fontSize: 13)),
+                style: TextStyle(fontSize: 13, color: scheme.onSurface)),
           ),
         ],
       ),
@@ -595,7 +598,8 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
             ),
             const SizedBox(height: 6),
             Text(_mode.hint,
-                style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                style: TextStyle(
+                    fontSize: 12, color: theme.colorScheme.onSurfaceVariant)),
           ],
         ),
       ),
@@ -663,7 +667,10 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   Widget _buildResultCard(ThemeData theme) {
     final verify = _verifyResult;
     return Card(
-      color: Colors.green.shade50,
+      color: Color.alphaBlend(
+        Colors.green.withValues(alpha: 0.10),
+        theme.colorScheme.surface,
+      ),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -702,7 +709,8 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                 Padding(
                   padding: const EdgeInsets.only(top: 8),
                   child: SelectableText('证书：${verify.certDn}',
-                      style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                      style: TextStyle(
+                          fontSize: 12, color: theme.colorScheme.onSurfaceVariant)),
                 ),
             ],
           ],
@@ -712,25 +720,24 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   }
 
   Widget _schemeChip(String label, bool ok) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final base = ok ? Colors.green : Colors.red;
+    final fg = dark
+        ? (ok ? Colors.green.shade300 : Colors.red.shade300)
+        : (ok ? Colors.green.shade900 : Colors.red.shade900);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: ok ? Colors.green.shade100 : Colors.red.shade100,
+        color: base.withValues(alpha: 0.18),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            ok ? Icons.check : Icons.close,
-            size: 14,
-            color: ok ? Colors.green.shade700 : Colors.red.shade700,
-          ),
+          Icon(ok ? Icons.check : Icons.close, size: 14, color: fg),
           const SizedBox(width: 4),
           Text('$label ${ok ? '✓' : '✗'}',
-              style: TextStyle(
-                  fontSize: 12,
-                  color: ok ? Colors.green.shade900 : Colors.red.shade900)),
+              style: TextStyle(fontSize: 12, color: fg)),
         ],
       ),
     );
@@ -762,7 +769,10 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
 
   Widget _buildErrorCard(ThemeData theme, String msg) {
     return Card(
-      color: Colors.red.shade50,
+      color: Color.alphaBlend(
+        Colors.red.withValues(alpha: 0.10),
+        theme.colorScheme.surface,
+      ),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(

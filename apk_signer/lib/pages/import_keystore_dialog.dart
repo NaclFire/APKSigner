@@ -250,7 +250,7 @@ class _ImportKeystoreDialogState extends State<_ImportKeystoreDialog> {
                       '证书：${alias.subject}',
                       style: TextStyle(
                         fontSize: 12,
-                        color: Colors.grey.shade600,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),
                   ),
