@@ -2,6 +2,7 @@
 
 !include "MUI2.nsh"
 !include "LogicLib.nsh"
+!include "FileFunc.nsh"
 
 !ifndef PRODUCT_VERSION
   !define PRODUCT_VERSION "1.0.0"
@@ -54,6 +55,61 @@ UninstallIcon "${APP_ICON}"
 !insertmacro MUI_UNPAGE_INSTFILES
 !insertmacro MUI_LANGUAGE "SimpChinese"
 
+; ---------------------------------------------------------------------------
+; 覆盖安装时沿用上一次的安装目录。
+; 1) 先读卸载信息 / 安装记录里记下的路径（本版本安装时写入）；
+; 2) 老版本可能根本没写注册表，再看几个常见位置；
+; 3) 最后扫描所有本地磁盘的 Program Files（老版本装在别的盘也不会丢）。
+; ---------------------------------------------------------------------------
+Function .onInit
+  ReadRegStr $0 HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCT_ID}" "InstallLocation"
+  ${If} $0 == ""
+    ReadRegStr $0 HKCU "Software\${PRODUCT_ID}" "InstallDir"
+  ${EndIf}
+  ${If} $0 == ""
+    ReadRegStr $0 HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCT_ID}" "InstallLocation"
+  ${EndIf}
+  ${If} $0 == ""
+    ReadRegStr $0 HKLM "Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCT_ID}" "InstallLocation"
+  ${EndIf}
+  ${If} $0 != ""
+  ${AndIf} ${FileExists} "$0\${PRODUCT_EXE}"
+    StrCpy $INSTDIR $0
+    Return
+  ${EndIf}
+
+  StrCpy $1 "$LOCALAPPDATA\Programs\${PRODUCT_ID}"
+  ${If} ${FileExists} "$1\${PRODUCT_EXE}"
+    StrCpy $INSTDIR $1
+    Return
+  ${EndIf}
+  StrCpy $1 "$PROGRAMFILES64\${PRODUCT_ID}"
+  ${If} ${FileExists} "$1\${PRODUCT_EXE}"
+    StrCpy $INSTDIR $1
+    Return
+  ${EndIf}
+  StrCpy $1 "$PROGRAMFILES32\${PRODUCT_ID}"
+  ${If} ${FileExists} "$1\${PRODUCT_EXE}"
+    StrCpy $INSTDIR $1
+    Return
+  ${EndIf}
+
+  ${GetDrives} "HDD" "DetectExistingInstall"
+FunctionEnd
+
+Function DetectExistingInstall
+  ; $9 = 盘符根目录（例如 "D:\"）。FindDrives 约定：
+  ; 回调里把 $9 设为 StopGetDrives 可结束枚举，返回前必须把 $9 压栈。
+  ${If} ${FileExists} "$9Program Files\${PRODUCT_ID}\${PRODUCT_EXE}"
+    StrCpy $INSTDIR "$9Program Files\${PRODUCT_ID}"
+    StrCpy $9 "StopGetDrives"
+  ${ElseIf} ${FileExists} "$9Program Files (x86)\${PRODUCT_ID}\${PRODUCT_EXE}"
+    StrCpy $INSTDIR "$9Program Files (x86)\${PRODUCT_ID}"
+    StrCpy $9 "StopGetDrives"
+  ${EndIf}
+  Push $9
+FunctionEnd
+
 Section "${PRODUCT_NAME}" MainSection
   SectionIn RO
   SetOutPath "$INSTDIR"
@@ -65,8 +121,11 @@ Section "${PRODUCT_NAME}" MainSection
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCT_ID}" "Publisher" "${PRODUCT_NAME}"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCT_ID}" "InstallLocation" "$INSTDIR"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCT_ID}" "UninstallString" "$INSTDIR\Uninstall.exe"
+  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCT_ID}" "DisplayIcon" "$INSTDIR\${PRODUCT_EXE}"
   WriteRegDWORD HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCT_ID}" "NoModify" 1
   WriteRegDWORD HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCT_ID}" "NoRepair" 1
+  ${GetSize} "$INSTDIR" "/S=0K" $0 $1 $2
+  WriteRegDWORD HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCT_ID}" "EstimatedSize" $0
 
   WriteUninstaller "$INSTDIR\Uninstall.exe"
   CreateDirectory "$SMPROGRAMS\${PRODUCT_NAME}"
