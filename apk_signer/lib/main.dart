@@ -153,7 +153,7 @@ class ApkSignerApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'APK 签名工具',
+      title: 'APK签名工具',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,

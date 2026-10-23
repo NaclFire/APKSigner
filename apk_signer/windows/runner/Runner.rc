@@ -90,12 +90,12 @@ BEGIN
         BLOCK "040904e4"
         BEGIN
             VALUE "CompanyName", "fire" "\0"
-            VALUE "FileDescription", "APK 签名工具" "\0"
+            VALUE "FileDescription", "APK签名工具" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
             VALUE "InternalName", "apk_signer" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2026 fire. All rights reserved." "\0"
             VALUE "OriginalFilename", "apk_signer.exe" "\0"
-            VALUE "ProductName", "APK 签名工具" "\0"
+            VALUE "ProductName", "APK签名工具" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

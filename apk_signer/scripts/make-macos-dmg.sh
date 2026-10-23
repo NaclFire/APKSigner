@@ -7,9 +7,9 @@
 #   CODESIGN_IDENTITY="Developer ID Application: xxx" ./scripts/make-macos-dmg.sh
 #
 # 默认 ad-hoc 签名（"-"），可直接本机运行；没有开发者证书时别人下载后
-# 需要右键「打开」或执行 `xattr -dr com.apple.quarantine /Applications/APK\ Signer.app`。
+# 需要右键「打开」或执行 `xattr -dr com.apple.quarantine /Applications/APK签名工具.app`。
 #
-# 产物：dist/apk_signer-<版本>.dmg（x64）/ dist/apk_signer-<版本>-arm64.dmg（arm64）
+# 产物：dist/APK签名工具-<版本>.dmg（x64）/ dist/APK签名工具-<版本>-arm64.dmg（arm64）
 
 set -eu
 
@@ -32,8 +32,8 @@ command -v flutter >/dev/null 2>&1 || {
   exit 1
 }
 
-APP_NAME="apk_signer"
-APP_DISPLAY_NAME="APK Signer"
+APP_NAME="APK签名工具"
+APP_DISPLAY_NAME="APK签名工具"
 APP="$ROOT_DIR/build/macos/Build/Products/Release/$APP_NAME.app"
 DIST="$ROOT_DIR/dist"
 

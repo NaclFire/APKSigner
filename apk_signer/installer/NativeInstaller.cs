@@ -11,7 +11,7 @@ public sealed class InstallerForm : Form
 
     public InstallerForm()
     {
-        Text = "APK Signer Setup";
+        Text = "APK签名工具 安装程序";
         StartPosition = FormStartPosition.CenterScreen;
         ClientSize = new Size(560, 190);
         FormBorderStyle = FormBorderStyle.FixedDialog;
@@ -21,7 +21,7 @@ public sealed class InstallerForm : Form
         var title = new Label {
             AutoSize = true,
             Location = new Point(24, 20),
-            Text = "Choose an installation folder for APK Signer:"
+            Text = "选择 APK签名工具 的安装目录："
         };
         Controls.Add(title);
 
@@ -107,13 +107,13 @@ public sealed class InstallerForm : Form
                 TryDelete(tempZip);
             }
 
-            CreateShortcut(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "APK Signer.lnk"), exePath, target);
-            var startMenu = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Microsoft\\Windows\\Start Menu\\Programs\\APK Signer");
+            CreateShortcut(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "APK签名工具.lnk"), exePath, target);
+            var startMenu = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Microsoft\\Windows\\Start Menu\\Programs\\APK签名工具");
             Directory.CreateDirectory(startMenu);
-            CreateShortcut(Path.Combine(startMenu, "APK Signer.lnk"), exePath, target);
+            CreateShortcut(Path.Combine(startMenu, "APK签名工具.lnk"), exePath, target);
 
             MessageBox.Show(this, "Installation completed.\r\n\r\nInstall folder: " + target,
-                "APK Signer", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                "APK签名工具", MessageBoxButtons.OK, MessageBoxIcon.Information);
             Close();
         } catch (Exception ex) {
             MessageBox.Show(this, "Installation failed: " + ex.Message,
@@ -188,7 +188,7 @@ public sealed class InstallerForm : Form
         shortcut.TargetPath = target;
         shortcut.WorkingDirectory = workingDirectory;
         shortcut.IconLocation = target + ",0";
-        shortcut.Description = "APK Signer";
+        shortcut.Description = "APK签名工具";
         shortcut.Save();
     }
 

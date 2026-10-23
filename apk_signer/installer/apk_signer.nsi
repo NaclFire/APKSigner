@@ -8,7 +8,7 @@
   !define PRODUCT_VERSION "1.0.0"
 !endif
 
-!define PRODUCT_NAME "APK Signer"
+!define PRODUCT_NAME "APK签名工具"
 !define PRODUCT_EXE "apk_signer.exe"
 !define PRODUCT_ID "APKSigner"
 ; 用脚本自身位置推导工程根目录，避免把绝对路径写死（工程目录改过名）。
@@ -17,12 +17,12 @@
 !define APP_ICON "${PROJECT_ROOT}\windows\runner\resources\app_icon.ico"
 
 Name "${PRODUCT_NAME}"
-Caption "APK 签名工具安装程序"
+Caption "APK签名工具安装程序"
 OutFile "${PROJECT_ROOT}\dist\APKSigner-Setup-${PRODUCT_VERSION}.exe"
 InstallDir "$LOCALAPPDATA\Programs\${PRODUCT_ID}"
 InstallDirRegKey HKCU "Software\${PRODUCT_ID}" "InstallDir"
 RequestExecutionLevel user
-BrandingText "APK 签名工具"
+BrandingText "APK签名工具"
 ShowInstDetails show
 ShowUninstDetails show
 SetCompressor /SOLID lzma
@@ -32,7 +32,7 @@ VIProductVersion "${PRODUCT_VERSION}.0"
 VIAddVersionKey /LANG=1033 "ProductName" "${PRODUCT_NAME}"
 VIAddVersionKey /LANG=1033 "ProductVersion" "${PRODUCT_VERSION}"
 VIAddVersionKey /LANG=1033 "FileDescription" "APK signing tool"
-VIAddVersionKey /LANG=1033 "CompanyName" "APK Signer"
+VIAddVersionKey /LANG=1033 "CompanyName" "APK签名工具"
 
 Icon "${APP_ICON}"
 UninstallIcon "${APP_ICON}"

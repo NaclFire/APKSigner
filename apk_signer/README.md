@@ -1,4 +1,4 @@
-# APK 签名工具 (apk_signer)
+# APK签名工具 (apk_signer)
 
 跨平台 APK 签名工具，一个 Flutter 代码库同时覆盖 **Windows / macOS / Android**。
 
@@ -93,11 +93,11 @@ cd <仓库>/apk_signer
   Finder + AppleScript，均不可用时生成普通 DMG，也可用 `DMG_LAYOUT=0` 跳过
 - 可选安装 `dmgbuild` 获得稳定布局：`python3 -m venv ~/.local/share/apk-signer/dmgvenv && ~/.local/share/apk-signer/dmgvenv/bin/pip install dmgbuild`
   （脚本会自动识别该路径，也支持 `DMGBUILD=/path/to/dmgbuild`）
-- 产物按 NexSSH-PC 的方式命名：`dist/apk_signer-<版本>.dmg`（x64）、
-  `dist/apk_signer-<版本>-arm64.dmg`（arm64）
+- 产物按 NexSSH-PC 的方式命名：`dist/APK签名工具-<版本>.dmg`（x64）、
+  `dist/APK签名工具-<版本>-arm64.dmg`（arm64）
 - 复用已有构建、只重新打包：`SKIP_BUILD=1 ./scripts/make-macos-dmg.sh`
 - 注意：未使用 Developer ID 证书 + 公证时，其他 Mac 首次打开需右键「打开」，
-  或执行 `xattr -dr com.apple.quarantine /Applications/apk_signer.app`
+  或执行 `xattr -dr com.apple.quarantine /Applications/APK签名工具.app`
 
 ### Android
 
