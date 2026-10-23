@@ -10,11 +10,14 @@
 !define PRODUCT_NAME "APK Signer"
 !define PRODUCT_EXE "apk_signer.exe"
 !define PRODUCT_ID "APKSigner"
-!define INSTALL_ROOT "E:\apsig\build\windows\x64\runner\Release"
+; 用脚本自身位置推导工程根目录，避免把绝对路径写死（工程目录改过名）。
+!define PROJECT_ROOT "${__FILEDIR__}\.."
+!define INSTALL_ROOT "${PROJECT_ROOT}\build\windows\x64\runner\Release"
+!define APP_ICON "${PROJECT_ROOT}\windows\runner\resources\app_icon.ico"
 
 Name "${PRODUCT_NAME}"
 Caption "APK 签名工具安装程序"
-OutFile "E:\apsig\dist\APKSigner-Setup-${PRODUCT_VERSION}.exe"
+OutFile "${PROJECT_ROOT}\dist\APKSigner-Setup-${PRODUCT_VERSION}.exe"
 InstallDir "$LOCALAPPDATA\Programs\${PRODUCT_ID}"
 InstallDirRegKey HKCU "Software\${PRODUCT_ID}" "InstallDir"
 RequestExecutionLevel user
@@ -30,12 +33,12 @@ VIAddVersionKey /LANG=1033 "ProductVersion" "${PRODUCT_VERSION}"
 VIAddVersionKey /LANG=1033 "FileDescription" "APK signing tool"
 VIAddVersionKey /LANG=1033 "CompanyName" "APK Signer"
 
-Icon "E:\apsig\windows\runner\resources\app_icon.ico"
-UninstallIcon "E:\apsig\windows\runner\resources\app_icon.ico"
+Icon "${APP_ICON}"
+UninstallIcon "${APP_ICON}"
 
 !define MUI_ABORTWARNING
-!define MUI_ICON "E:\apsig\windows\runner\resources\app_icon.ico"
-!define MUI_UNICON "E:\apsig\windows\runner\resources\app_icon.ico"
+!define MUI_ICON "${APP_ICON}"
+!define MUI_UNICON "${APP_ICON}"
 !define MUI_WELCOMEPAGE_TITLE "APK 签名工具安装向导"
 !define MUI_WELCOMEPAGE_TEXT "此向导将帮助您在计算机上安装 APK 签名工具。"
 !define MUI_FINISHPAGE_RUN "$INSTDIR\${PRODUCT_EXE}"
