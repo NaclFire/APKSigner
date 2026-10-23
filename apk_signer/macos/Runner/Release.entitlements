@@ -2,7 +2,7 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>com.apple.security.app-sandbox</key>
-	<true/>
+	<!-- 桌面工具不启用 App Sandbox：需要读取用户选择的任意 APK、
+	     在源文件旁写出 <原名>_sign.apk，并启动内置 JRE。沙箱会阻止这些操作。 -->
 </dict>
 </plist>

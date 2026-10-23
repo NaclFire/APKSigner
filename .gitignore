@@ -23,6 +23,9 @@
 **/*.msi
 **/*.apk
 
+# Generated macOS signing runtime (created by scripts/make-macos-jre.sh)
+**/assets/signer-macos/
+
 # Logs and temporary files
 *.log
 *.tmp

@@ -18,9 +18,10 @@ class MainFlutterWindow: NSWindow {
 /// 注册 "apk_signer/desktop" 通道（macOS 只需 getAssetsDir；
 /// 进程启动走 dart:io Process，无控制台窗口问题）。
 private func registerDesktopChannel(viewController: FlutterViewController) {
-  let registrar = viewController.registrar(forPlugin: "ApkSignerDesktop")!
+  // 注意：Flutter 3.4x 起 registrar(forPlugin:) 返回非可选值，不要加 "!"
+  let registrar = viewController.registrar(forPlugin: "ApkSignerDesktop")
   let channel = FlutterMethodChannel(
-    name: "apk_signer/desktop", binaryMessenger: registrar.messenger())
+    name: "apk_signer/desktop", binaryMessenger: registrar.messenger)
   channel.setMethodCallHandler { call, result in
     switch call.method {
     case "getAssetsDir":

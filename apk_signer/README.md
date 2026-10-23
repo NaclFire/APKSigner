@@ -66,12 +66,38 @@ cd <仓库>/apk_signer
 flutter build macos --release
 ```
 
+> 已在 Xcode 16.4 + Flutter 3.47.7（Dart 3.13.5）上验证。macOS 端不启用
+> App Sandbox（`Release.entitlements` / `DebugProfile.entitlements` 均无
+> `app-sandbox`）：工具需要读取用户选择的任意 APK、在源文件旁写出
+> `<原名>_sign.apk`，并启动内置 JRE，沙箱会拦截这些操作。
+
 - 首次构建时 Xcode 工程里的 "Copy Signer Runtime" Run Script 会自动执行
   `scripts/make-macos-jre.sh`：下载当前架构的 Temurin JDK 17、用与 Windows 端
   完全相同的模块集做 jlink、拷入 keytool 与 apksigner.jar，生成
   `assets/signer-macos/jre`，然后复制到 `Contents/Resources/signer/`
 - 签名运行时不在 Flutter assets 里（Flutter 资产管线会丢弃 .exe/.dll/.jnilib 等
   扩展名，且会撑爆 Android APK），全部走原生拷贝通道
+
+### macOS 安装包（DMG）
+
+```bash
+cd <仓库>/apk_signer
+./scripts/make-macos-dmg.sh
+```
+
+- 内部执行 `flutter build macos --release`，再对内置 JRE 的 Mach-O 二进制与
+  app 做 ad-hoc 签名（可用 `CODESIGN_IDENTITY` 指定开发者证书），最后用
+  `hdiutil` 打包成带 Applications 快捷方式的 DMG
+- DMG 窗口布局与 electron-builder 默认样式一致（540×380、图标定位、拖入
+  Applications）；优先用 `dmgbuild`（不依赖 Finder 授权），没有时退回
+  Finder + AppleScript，均不可用时生成普通 DMG，也可用 `DMG_LAYOUT=0` 跳过
+- 可选安装 `dmgbuild` 获得稳定布局：`python3 -m venv ~/.local/share/apk-signer/dmgvenv && ~/.local/share/apk-signer/dmgvenv/bin/pip install dmgbuild`
+  （脚本会自动识别该路径，也支持 `DMGBUILD=/path/to/dmgbuild`）
+- 产物按 NexSSH-PC 的方式命名：`dist/apk_signer-<版本>.dmg`（x64）、
+  `dist/apk_signer-<版本>-arm64.dmg`（arm64）
+- 复用已有构建、只重新打包：`SKIP_BUILD=1 ./scripts/make-macos-dmg.sh`
+- 注意：未使用 Developer ID 证书 + 公证时，其他 Mac 首次打开需右键「打开」，
+  或执行 `xattr -dr com.apple.quarantine /Applications/apk_signer.app`
 
 ### Android
 

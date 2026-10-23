@@ -356,7 +356,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "sh \"$PROJECT_DIR/../scripts/make-macos-jre.sh\"\nmkdir -p \"$BUILT_PRODUCTS_DIR/$PRODUCT_NAME.app/Contents/Resources/signer\"\ncp -R \"$PROJECT_DIR/../assets/signer-macos/.\" \"$BUILT_PRODUCTS_DIR/$PRODUCT_NAME.app/Contents/Resources/signer/\"\n";
+			shellScript = "sh \"$PROJECT_DIR/../scripts/make-macos-jre.sh\"\nDEST=\"$BUILT_PRODUCTS_DIR/$PRODUCT_NAME.app/Contents/Resources/signer\"\nrm -rf \"$DEST\"\nmkdir -p \"$DEST\"\ncp -R \"$PROJECT_DIR/../assets/signer-macos/.\" \"$DEST/\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 

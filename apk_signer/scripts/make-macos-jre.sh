@@ -34,17 +34,57 @@ trap 'rm -rf "$TMP"' EXIT
 JAR="$TMP/jdk17.tar.gz"
 
 echo "[make-macos-jre] 下载 Temurin JDK 17 (mac/$ADOPT_ARCH) ..."
-URL="https://api.adoptium.net/v3/binary/latest/17/ga/mac/${ADOPT_ARCH}/jdk/hotspot/normal/eclipse"
+
+# 官方 API 在国内经常只有几十 KB/s，慢速时自动中止并回退到清华镜像。
+# 可用 MACOS_JDK_URL 指定自定义下载地址（优先级最高）。
+OFFICIAL_URL="https://api.adoptium.net/v3/binary/latest/17/ga/mac/${ADOPT_ARCH}/jdk/hotspot/normal/eclipse"
+MIRROR_BASE="https://mirrors.tuna.tsinghua.edu.cn/Adoptium/17/jdk/${ADOPT_ARCH}/mac/"
+
+MIRROR_URL=""
 if command -v curl >/dev/null 2>&1; then
-  curl -fsSL -o "$JAR" "$URL"
-else
-  wget -q -O "$JAR" "$URL"
+  LATEST=$(curl -fsSL --max-time 20 "$MIRROR_BASE" 2>/dev/null \
+    | grep -o "OpenJDK17U-jdk_${ADOPT_ARCH}_mac_hotspot_[0-9][^\"]*\.tar\.gz" \
+    | sort -u | tail -n 1 || true)
+  [ -n "$LATEST" ] && MIRROR_URL="$MIRROR_BASE$LATEST"
+fi
+
+URLS="${MACOS_JDK_URL:-} $OFFICIAL_URL $MIRROR_URL"
+OK=0
+for URL in $URLS; do
+  echo "[make-macos-jre] 尝试：$URL"
+  if command -v curl >/dev/null 2>&1; then
+    # 强制 HTTP/1.1（部分网络下 HTTP/2 报 framing error）；
+    # 速度连续 20 秒低于 100KB/s 视为不可用，换下一个源。
+    if curl -fsSL --http1.1 --retry 2 --retry-delay 2 \
+      --speed-limit 102400 --speed-time 20 -o "$JAR" "$URL"; then
+      OK=1
+      break
+    fi
+  elif wget -q -O "$JAR" "$URL"; then
+    OK=1
+    break
+  fi
+  rm -f "$JAR"
+done
+if [ "$OK" != "1" ]; then
+  echo "[make-macos-jre] 下载失败，可设置 MACOS_JDK_URL 指向本地/镜像 JDK 压缩包" >&2
+  exit 1
 fi
 
 echo "[make-macos-jre] 解压并生成 JRE ..."
 tar -xzf "$JAR" -C "$TMP"
-JDK_HOME=$(find "$TMP" -maxdepth 1 -type d -name "jdk-17*" | head -n 1)
-if [ -z "$JDK_HOME" ] || [ ! -x "$JDK_HOME/bin/jlink" ]; then
+JDK_DIR=$(find "$TMP" -maxdepth 1 -type d -name "jdk-17*" | head -n 1)
+if [ -z "$JDK_DIR" ]; then
+  echo "[make-macos-jre] 未找到解压后的 JDK 目录" >&2
+  exit 1
+fi
+# macOS 的 JDK 压缩包是 bundle 结构（<jdk>/Contents/Home），Linux 则直接是 <jdk>
+if [ -x "$JDK_DIR/Contents/Home/bin/jlink" ]; then
+  JDK_HOME="$JDK_DIR/Contents/Home"
+else
+  JDK_HOME="$JDK_DIR"
+fi
+if [ ! -x "$JDK_HOME/bin/jlink" ]; then
   echo "[make-macos-jre] 未找到 jlink（$JDK_HOME）" >&2
   exit 1
 fi
